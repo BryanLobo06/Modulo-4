@@ -1,8 +1,7 @@
-/*se encarga de cargar los client a la base de datos*/
-import fs from 'fs'; // es la que me permite leer archivos
-import path from 'path'; // esta muestra la ruta actual
+import fs from 'fs'; 
+import path from 'path'; 
 import csv from 'csv-parser';
-import { pool } from "../conexion_db.js"
+import { pool } from "../conexiondb.js"
 
 
 export async function cargarclientAlaBaseDeDatos() {
@@ -24,18 +23,18 @@ export async function cargarclientAlaBaseDeDatos() {
             })
             .on('end', async () => {
                 try {
-                    const sql = 'INSERT INTO client VALUES ?';
+                    const sql = 'INSERT INTO client (name_client, identificacion, address, phone, email) VALUES ?';
                     const [result] = await pool.query(sql, [client]);
 
-                    console.log(`✅ Se insertaron ${result.affectedRows} client.`);
-                    resolve(); // Termina exitosamente
+                    console.log(`Se insertaron ${result.affectedRows} clientes.`);
+                    resolve(); 
                 } catch (error) {
-                    console.error('❌ Error al insertar client:', error.message);
+                    console.error('Error al insertar clientes:', error.message);
                     reject(error);
                 }
             })
             .on('error', (err) => {
-                console.error('❌ Error al leer el archivo CSV de client:', err.message);
+                console.error('Error al leer el archivo CSV de clientes:', err.message);
                 reject(err);
             });
     });

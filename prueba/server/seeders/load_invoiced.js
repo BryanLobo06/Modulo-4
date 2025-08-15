@@ -1,9 +1,7 @@
-/*se encarga de cargar los invoiced a la base de datos*/
-import fs from 'fs'; // es la que me permite leer archivos
-import path from 'path'; // esta muestra la ruta actual
+import fs from 'fs'; 
+import path from 'path'; 
 import csv from 'csv-parser';
-import { pool } from "../conexion_db.js"
-
+import { pool } from "../conexiondb.js"
 
 export async function cargarinvoicedAlaBaseDeDatos() {
 
@@ -25,18 +23,18 @@ export async function cargarinvoicedAlaBaseDeDatos() {
             })
             .on('end', async () => {
                 try {
-                    const sql = 'INSERT INTO invoiced VALUES ?';
+                    const sql = 'INSERT INTO invoiced (invoice_numbe, platform, billing_period, invoiced_amount, amount_paid, identificacion) VALUES ?';
                     const [result] = await pool.query(sql, [invoiced]);
 
-                    console.log(`✅ Se insertaron ${result.affectedRows} invoiced.`);
-                    resolve(); // Termina exitosamente
+                    console.log(`Se insertaron ${result.affectedRows} facturas.`);
+                    resolve(); 
                 } catch (error) {
-                    console.error('❌ Error al insertar invoiced:', error.message);
+                    console.error('Error al insertar facturas:', error.message);
                     reject(error);
                 }
             })
             .on('error', (err) => {
-                console.error('❌ Error al leer el archivo CSV de invoiced:', err.message);
+                console.error('Error al leer el archivo CSV de facturas:', err.message);
                 reject(err);
             });
     });

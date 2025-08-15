@@ -1,8 +1,7 @@
-/*se encarga de cargar los transaction a la base de datos*/
-import fs from 'fs'; // es la que me permite leer archivos
-import path from 'path'; // esta muestra la ruta actual
+import fs from 'fs'; 
+import path from 'path';
 import csv from 'csv-parser';
-import { pool } from "../conexion_db.js"
+import { pool } from "../conexiondb.js"
 
 
 export async function cargartransactionAlaBaseDeDatos() {
@@ -23,18 +22,18 @@ export async function cargartransactionAlaBaseDeDatos() {
             })
             .on('end', async () => {
                 try {
-                    const sql = 'INSERT INTO transaction VALUES ?';
+                    const sql = 'INSERT INTO transaction (id_transaction, date_and_time, amount, transaction_type) VALUES ?';
                     const [result] = await pool.query(sql, [transaction]);
 
-                    console.log(`✅ Se insertaron ${result.affectedRows} autores.`);
-                    resolve(); // Termina exitosamente
+                    console.log(`Se insertaron ${result.affectedRows} transacciones.`);
+                    resolve(); 
                 } catch (error) {
-                    console.error('❌ Error al insertar transaction:', error.message);
+                    console.error('Error al insertar transacciones:', error.message);
                     reject(error);
                 }
             })
             .on('error', (err) => {
-                console.error('❌ Error al leer el archivo CSV de transaction:', err.message);
+                console.error('Error al leer el archivo CSV de transacciones:', err.message);
                 reject(err);
             });
     });

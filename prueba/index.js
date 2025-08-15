@@ -1,30 +1,20 @@
 import cors from "cors"
 import express from "express"
-import { pool } from "./conexion_db.js"
+import { pool } from "./server/conexiondb.js"
 
 const app = express()
-app.use(cors()) // esto permite que la aplicacion backend pueda ser consumidentificaciona por una aplicacion frontend
-app.use(express.json()) // permite que Express interprete automáticamente el body en JSON cuando recibes una petición POST o PUT.
+app.use(cors())
+app.use(express.json())
 
 
-app.get('/client', async (req, res) => {
+
+// GET all clients
+app.get('/clients', async (req, res) => {
     try {
         const [rows] = await pool.query(`
-        SELECT 
-            c.identificacion,
-            c.fecha_client,
-            p.fecha_devolucion,
-            p.estado,
-            u.nombre_completo AS usuario,
-            l.isbn, 
-            l.titulo AS libro
-        FROM client c
-        LEFT JOIN transaction u ON p.identificacion_usuario = u.identificacion_usuario
-        LEFT JOIN invoiced l ON p.isbn = l.isbn
+            SELECT * FROM client
         `);
-
         res.json(rows);
-
     } catch (error) {
         res.status(500).json({
             status: 'error',
@@ -35,24 +25,17 @@ app.get('/client', async (req, res) => {
     }
 });
 
-app.get('/client/:identificacion', async (req, res) => {
+// GET client by identificacion
+app.get('/clients/:identificacion', async (req, res) => {
     try {
-        const { identificacion } = req.params
-
+        const { identificacion } = req.params;
         const [rows] = await pool.query(`
-        SELECT 
-            p.identificacion_client,
-            p.fecha_client,
-            p.fecha_devolucion,
-            p.estado,
-            u.nombre_completo AS usuario,
-            l.isbn, 
-            l.titulo AS libro
-        FROM client p
-        LEFT JOIN transaction u ON p.identificacion_usuario = u.identificacion_usuario
-        LEFT JOIN invoiced l ON p.isbn = l.isbn WHERE p.identificacion_client = ?
+            SELECT * FROM client WHERE identificacion = ?
         `, [identificacion]);
 
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Cliente no encontrado" });
+        }
         res.json(rows[0]);
     } catch (error) {
         res.status(500).json({
@@ -64,34 +47,22 @@ app.get('/client/:identificacion', async (req, res) => {
     }
 });
 
-app.post('/client', async (req, res) => {
+// POST create new client
+app.post('/clients', async (req, res) => {
     try {
-        const {
-            identificacion_usuario,
-            isbn,
-            fecha_client,
-            fecha_devolucion,
-            estado
-        } = req.body
+        const {name_client, identificacion, address, phone, email} = req.body;
 
         const query = `
-        INSERT INTO client 
-        (identificacion_usuario, isbn, fecha_client, fecha_devolucion, estado)
-        VALUES (?, ?, ?, ?, ?)
-        `
-        const values = [
-            identificacion_usuario,
-            isbn,
-            fecha_client,
-            fecha_devolucion,
-            estado
-        ]
+            INSERT INTO client (name_client, identificacion, address, phone, email)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        const values = [name_client, identificacion, address, phone, email];
 
-        const [result] = await pool.query(query, values)
-
+        const [result] = await pool.query(query, values);
         res.status(201).json({
-            mensaje: "client creado exitosamente"
-        })
+            message: "Cliente creado exitosamente",
+            id: result.insertId
+        });
     } catch (error) {
         res.status(500).json({
             status: 'error',
@@ -100,43 +71,30 @@ app.post('/client', async (req, res) => {
             message: error.message
         });
     }
-})
+});
 
-app.put('/client/:identificacion_client', async (req, res) => {
+// PUT update client
+app.put('/clients/:identificacion', async (req, res) => {
     try {
-        const { identificacion_client } = req.params
-
-        const {
-            identificacion_usuario,
-            isbn,
-            fecha_client,
-            fecha_devolucion,
-            estado
-        } = req.body
+        const { identificacion } = req.params;
+        const { name_client, address, phone, email } = req.body;
 
         const query = `
-        UPDATE client SET 
-            identificacion_usuario = ?,
-            isbn = ?,
-            fecha_client = ?,
-            fecha_devolucion = ?,
-            estado = ?
-        WHERE identificacion_client = ?
-        `
-        const values = [
-            identificacion_usuario,
-            isbn,
-            fecha_client,
-            fecha_devolucion,
-            estado,
-            identificacion_client
-        ]
+            UPDATE client SET 
+                name_client = ?,
+                address = ?,
+                phone = ?,
+                email = ?
+            WHERE identificacion = ?
+        `;
+        const values = [name_client, address, phone, email, identificacion];
 
-        const [result] = await pool.query(query, values)
+        const [result] = await pool.query(query, values);
 
-        if (result.affectedRows != 0) {
-            return res.json({ mensaje: "client actualizado" })
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Cliente no encontrado" });
         }
+        res.json({ message: "Cliente actualizado exitosamente" });
     } catch (error) {
         res.status(500).json({
             status: 'error',
@@ -145,24 +103,86 @@ app.put('/client/:identificacion_client', async (req, res) => {
             message: error.message
         });
     }
-})
+});
 
-app.delete('/client/:identificacion_client', async (req, res) => {
+// DELETE client
+app.delete('/clients/:identificacion', async (req, res) => {
     try {
-        const { identificacion_client } = req.params
+        const { identificacion } = req.params;
+
+        const query = `DELETE FROM client WHERE identificacion = ?`;
+        const [result] = await pool.query(query, [identificacion]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Cliente no encontrado" });
+        }
+        res.json({ message: "Cliente eliminado exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+
+// GET all transactions
+app.get('/transactions', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT * FROM transaction
+        `);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// GET transaction by id
+app.get('/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [rows] = await pool.query(`
+            SELECT * FROM transaction WHERE id_transaction = ?
+        `, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Transacción no encontrada" });
+        }
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// POST create new transaction
+app.post('/transactions', async (req, res) => {
+    try {
+        const { id_transaction, date_and_time, amount, transaction_type } = req.body;
 
         const query = `
-        DELETE FROM client WHERE identificacion_client = ?
-        `
-        const values = [
-            identificacion_client
-        ]
+            INSERT INTO transaction (id_transaction, date_and_time, amount, transaction_type)
+            VALUES (?, ?, ?, ?)
+        `;
+        const values = [id_transaction, date_and_time, amount, transaction_type];
 
-        const [result] = await pool.query(query, values)
-
-        if (result.affectedRows != 0) {
-            return res.json({ mensaje: "client eliminado" })
-        }
+        const [result] = await pool.query(query, values);
+        res.status(201).json({
+            message: "Transacción creada exitosamente",
+            id: result.insertId
+        });
     } catch (error) {
         res.status(500).json({
             status: 'error',
@@ -171,27 +191,309 @@ app.delete('/client/:identificacion_client', async (req, res) => {
             message: error.message
         });
     }
+});
+
+// PUT update transaction
+app.put('/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { date_and_time, amount, transaction_type } = req.body;
+
+        const query = `
+            UPDATE transaction SET 
+                date_and_time = ?,
+                amount = ?,
+                transaction_type = ?
+            WHERE id_transaction = ?
+        `;
+        const values = [date_and_time, amount, transaction_type, id];
+
+        const [result] = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Transacción no encontrada" });
+        }
+        res.json({ message: "Transacción actualizada exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// DELETE transaction
+app.delete('/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const query = `DELETE FROM transaction WHERE id_transaction = ?`;
+        const [result] = await pool.query(query, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Transacción no encontrada" });
+        }
+        res.json({ message: "Transacción eliminada exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
 
 
+// GET all invoices
+app.get('/invoices', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT * FROM invoiced
+        `);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// GET invoice by number
+app.get('/invoices/:invoice_number', async (req, res) => {
+    try {
+        const { invoice_number } = req.params;
+        const [rows] = await pool.query(`
+            SELECT * FROM invoiced WHERE invoice_numbe = ?
+        `, [invoice_number]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Factura no encontrada" });
+        }
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// POST create new invoice
+app.post('/invoices', async (req, res) => {
+    try {
+        const { invoice_numbe, platform, billing_period, invoiced_amount, amount_paid, identificacion } = req.body;
+
+        const query = `
+            INSERT INTO invoiced (invoice_numbe, platform, billing_period, invoiced_amount, amount_paid, identificacion)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        const values = [invoice_numbe, platform, billing_period, invoiced_amount, amount_paid, identificacion];
+
+        const [result] = await pool.query(query, values);
+        res.status(201).json({
+            message: "Factura creada exitosamente",
+            id: result.insertId
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// PUT update invoice
+app.put('/invoices/:invoice_number', async (req, res) => {
+    try {
+        const { invoice_number } = req.params;
+        const { platform, billing_period, invoiced_amount, amount_paid, identificacion } = req.body;
+
+        const query = `
+            UPDATE invoiced SET 
+                platform = ?,
+                billing_period = ?,
+                invoiced_amount = ?,
+                amount_paid = ?,
+                identificacion = ?
+            WHERE invoice_numbe = ?
+        `;
+        const values = [platform, billing_period, invoiced_amount, amount_paid, identificacion, invoice_number];
+
+        const [result] = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Factura no encontrada" });
+        }
+        res.json({ message: "Factura actualizada exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// DELETE invoice
+app.delete('/invoices/:invoice_number', async (req, res) => {
+    try {
+        const { invoice_number } = req.params;
+
+        const query = `DELETE FROM invoiced WHERE invoice_numbe = ?`;
+        const [result] = await pool.query(query, [invoice_number]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Factura no encontrada" });
+        }
+        res.json({ message: "Factura eliminada exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
 
 
-})
+// GET all states
+app.get('/states', async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT * FROM state
+        `);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
 
-// 1. Ver todos los préstamos de un usuario
-app.get('/client/usuario/:identificacion', async (req, res) => {
+// GET state by id
+app.get('/states/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [rows] = await pool.query(`
+            SELECT * FROM state WHERE id = ?
+        `, [id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: "Estado no encontrado" });
+        }
+        res.json(rows[0]);
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// POST create new state
+app.post('/states', async (req, res) => {
+    try {
+        const { transaction_status } = req.body;
+
+        const query = `
+            INSERT INTO state (transaction_status)
+            VALUES (?)
+        `;
+        const values = [transaction_status];
+
+        const [result] = await pool.query(query, values);
+        res.status(201).json({
+            message: "Estado creado exitosamente",
+            id: result.insertId
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// PUT update state
+app.put('/states/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { transaction_status } = req.body;
+
+        const query = `
+            UPDATE state SET 
+                transaction_status = ?
+            WHERE id = ?
+        `;
+        const values = [transaction_status, id];
+
+        const [result] = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Estado no encontrado" });
+        }
+        res.json({ message: "Estado actualizado exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+// DELETE state
+app.delete('/states/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const query = `DELETE FROM state WHERE id = ?`;
+        const [result] = await pool.query(query, [id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "Estado no encontrado" });
+        }
+        res.json({ message: "Estado eliminado exitosamente" });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            endpoint: req.originalUrl,
+            method: req.method,
+            message: error.message
+        });
+    }
+});
+
+
+// GET invoices by client identificacion
+app.get('/clients/:identificacion/invoices', async (req, res) => {
     try {
         const { identificacion } = req.params;
         const [rows] = await pool.query(`
-            SELECT 
-                p.identificacion_client,
-                p.fecha_client,
-                p.fecha_devolucion,
-                p.estado,
-                l.isbn,
-                l.titulo AS libro
-            FROM client p
-            LEFT JOIN invoiced l ON p.isbn = l.isbn
-            WHERE p.identificacion_usuario = ?
+            SELECT i.*, c.name_client 
+            FROM invoiced i
+            JOIN client c ON i.identificacion = c.identificacion
+            WHERE i.identificacion = ?
         `, [identificacion]);
 
         res.json(rows);
@@ -205,19 +507,14 @@ app.get('/client/usuario/:identificacion', async (req, res) => {
     }
 });
 
-// 2. Listar los 5 invoiced más prestados
-app.get('/invoiced/mas-invoiced', async (req, res) => {
+// GET unpaid invoices
+app.get('/invoices/unpaid', async (req, res) => {
     try {
         const [rows] = await pool.query(`
-            SELECT 
-                l.isbn,
-                l.titulo,
-                COUNT(p.identificacion_client) AS total_client
-            FROM client p
-            LEFT JOIN invoiced l ON p.isbn = l.isbn
-            GROUP BY l.isbn, l.titulo
-            ORDER BY total_client DESC
-            LIMIT 5
+            SELECT i.*, c.name_client 
+            FROM invoiced i
+            JOIN client c ON i.identificacion = c.identificacion
+            WHERE i.amount_paid < i.invoiced_amount
         `);
 
         res.json(rows);
@@ -231,17 +528,13 @@ app.get('/invoiced/mas-invoiced', async (req, res) => {
     }
 });
 
-// 3. Listar transaction con préstamos en estado "retrasado"
-app.get('/transaction/con-retrasos', async (req, res) => {
+// GET transactions by type
+app.get('/transactions/type/:type', async (req, res) => {
     try {
+        const { type } = req.params;
         const [rows] = await pool.query(`
-            SELECT DISTINCT
-                u.identificacion_usuario,
-                u.nombre_completo
-            FROM client p
-            LEFT JOIN transaction u ON p.identificacion_usuario = u.identificacion_usuario
-            WHERE p.estado = 'retrasado'
-        `);
+            SELECT * FROM transaction WHERE transaction_type = ?
+        `, [type]);
 
         res.json(rows);
     } catch (error) {
@@ -254,63 +547,8 @@ app.get('/transaction/con-retrasos', async (req, res) => {
     }
 });
 
-// 4. Listar préstamos activos
-app.get('/client/activos', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT 
-                p.identificacion_client,
-                p.fecha_client,
-                p.fecha_devolucion,
-                p.estado,
-                u.nombre_completo AS usuario,
-                l.titulo AS libro
-            FROM client p
-            LEFT JOIN transaction u ON p.identificacion_usuario = u.identificacion_usuario
-            LEFT JOIN invoiced l ON p.isbn = l.isbn
-            WHERE p.estado = 'activo'
-        `);
-
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            endpoint: req.originalUrl,
-            method: req.method,
-            message: error.message
-        });
-    }
+// Server startup
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor iniciado correctamente en http://localhost:${PORT}`);
 });
-
-// 5. Historial de un libro por su ISBN
-app.get('/client/historial/:isbn', async (req, res) => {
-    try {
-        const { isbn } = req.params;
-        const [rows] = await pool.query(`
-            SELECT 
-                p.identificacion_client,
-                p.fecha_client,
-                p.fecha_devolucion,
-                p.estado,
-                u.nombre_completo AS usuario
-            FROM client p
-            LEFT JOIN transaction u ON p.identificacion_usuario = u.identificacion_usuario
-            WHERE p.isbn = ?
-            ORDER BY p.fecha_client DESC
-        `, [isbn]);
-
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({
-            status: 'error',
-            endpoint: req.originalUrl,
-            method: req.method,
-            message: error.message
-        });
-    }
-});
-
-//Inicio del servidentificacionor cuando este todo listo
-app.listen(3000, () => {
-    console.log("servidentificacionor prepado correctamente en http://localhost:3000");
-})

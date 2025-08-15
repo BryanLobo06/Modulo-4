@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "start": "node index.js",
+    "dev": "node index.js",
+    "seed": "node server/seeders/run_seeders.js",
     "build": "vite build",
     "preview": "vite preview"
   },

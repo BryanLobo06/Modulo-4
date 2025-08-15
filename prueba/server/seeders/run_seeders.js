@@ -12,9 +12,9 @@ import { cargarstateAlaBaseDeDatos } from "./load_state.js";
         await cargarinvoicedAlaBaseDeDatos()
         await cargarstateAlaBaseDeDatos()
 
-        console.log('✅ Todos los seeders ejecutados correctamente.');
+        console.log('Todos los seeders ejecutados correctamente.');
     } catch (error) {
-        console.error('❌ Error ejecutando los seeders:', error.message);
+        console.error('Error ejecutando los seeders:', error.message);
     } finally {
         process.exit();
     }

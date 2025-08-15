@@ -1,8 +1,7 @@
-/*se encarga de cargar los state a la base de datos*/
-import fs from 'fs'; // es la que me permite leer archivos
-import path from 'path'; // esta muestra la ruta actual
+import fs from 'fs'; 
+import path from 'path'; 
 import csv from 'csv-parser';
-import { pool } from "../conexion_db.js"
+import { pool } from "../conexiondb.js"
 
 
 export async function cargarstateAlaBaseDeDatos() {
@@ -20,18 +19,18 @@ export async function cargarstateAlaBaseDeDatos() {
             })
             .on('end', async () => {
                 try {
-                    const sql = 'INSERT INTO state VALUES ?';
+                    const sql = 'INSERT INTO state (transaction_status) VALUES ?';
                     const [result] = await pool.query(sql, [state]);
 
-                    console.log(`✅ Se insertaron ${result.affectedRows} autores.`);
-                    resolve(); // Termina exitosamente
+                    console.log(`Se insertaron ${result.affectedRows} estados.`);
+                    resolve(); 
                 } catch (error) {
-                    console.error('❌ Error al insertar state:', error.message);
+                    console.error('Error al insertar estados:', error.message);
                     reject(error);
                 }
             })
             .on('error', (err) => {
-                console.error('❌ Error al leer el archivo CSV de state:', err.message);
+                console.error('Error al leer el archivo CSV de estados:', err.message);
                 reject(err);
             });
     });
